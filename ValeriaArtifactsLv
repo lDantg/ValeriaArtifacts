@@ -1,0 +1,115 @@
+fetch("https://www.valeriagames.com/api/shards/artifacts", {
+  headers: {
+    "accept": "*/*",
+    "accept-language": "en-US,en;q=0.9",
+    "priority": "u=1, i",
+    "sec-ch-ua": "\"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\", \"Opera GX\";v=\"114\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin"
+  },
+  referrer: "https://www.valeriagames.com/shard-campaign?tab=artifacts",
+  referrerPolicy: "strict-origin-when-cross-origin",
+  method: "GET",
+  mode: "cors",
+  credentials: "include"
+})
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    // Filtrar apenas os itens ativos
+    const activeItems = data.data.filter(item => item.active);
+
+    // Cálculo do custo-benefício
+    const costBenefitData = activeItems.map((item, index) => {
+      const profitIncrease = item.nextProfit - item.profit;
+      const costBenefit = profitIncrease / item.nextCost;
+      return {
+        Order: index + 1, // Define a ordem com base na lista ordenada
+        Key: item.key,
+        Level: item.level,
+        NextCost: item.nextCost,
+        ProfitIncrease: profitIncrease,
+        CostBenefit: costBenefit,
+        Active: item.active
+      };
+    });
+
+    // Ordenar pelo custo-benefício (maior para menor)
+    costBenefitData.sort((a, b) => b.CostBenefit - a.CostBenefit);
+
+    // Exibir os resultados no console
+    console.table(costBenefitData);
+
+    // Limitar aos 5 primeiros
+    const top5Items = costBenefitData.slice(0, 5);
+
+    // Obter o contêiner onde as divs estão localizadas
+    const container = document.querySelector('.artifacts-container'); // Ajuste o seletor para o seu contêiner específico
+
+    // Obter todas as divs que correspondem aos itens
+    const allElements = document.querySelectorAll("div[data-key], div[id], div[class]");
+
+    // Mover as 5 divs do Top 5 para o início do contêiner
+    top5Items.forEach(item => {
+      const keyName = item.Key;
+      
+      // Buscar elementos no DOM pelo nome da key
+      const element = Array.from(allElements).find(el => el.dataset.key === keyName || el.id === keyName || el.classList.contains(keyName));
+      
+      if (element && container) {
+        // Mover o elemento para o topo do contêiner
+        element.style.transition = "all 0.5s ease";
+        container.prepend(element); // Move para o topo do contêiner
+      }
+    });
+
+    // Adicionar indicadores no DOM para os 5 primeiros e desmarcar os outros
+    costBenefitData.forEach((item, index) => {
+      const keyName = item.Key;
+
+      // Buscar elementos no DOM pelo nome da key
+      const element = Array.from(allElements).find(el => el.dataset.key === keyName || el.id === keyName || el.classList.contains(keyName));
+
+      if (element) {
+        // Se o item estiver no Top 5, adicionar marcador
+        if (top5Items.includes(item)) {
+          const marker = document.createElement("div");
+          marker.innerText = index + 1; // Número da ordem (de 1 a 5)
+          marker.style.position = "absolute";
+          marker.style.top = "10px";
+          marker.style.left = "10px";
+          marker.style.fontSize = "30px";
+          marker.style.color = "black";
+          marker.style.backgroundColor = "yellow";
+          marker.style.borderRadius = "50%";
+          marker.style.width = "50px";
+          marker.style.height = "50px";
+          marker.style.display = "flex";
+          marker.style.justifyContent = "center";
+          marker.style.alignItems = "center";
+          marker.style.zIndex = "1000";
+
+          // Adicionar o marcador como filho da div
+          element.style.position = "relative"; // Garante que o elemento pai seja posicionado corretamente
+          element.appendChild(marker);
+
+          console.log(`Indicador adicionado para a chave: ${keyName}`);
+        } else {
+          // Se o item não estiver no Top 5, aplicar opacidade
+          element.style.opacity = "0.3"; // Torna a div mais transparente
+        }
+      } else {
+        console.log(`Elemento não encontrado para a chave: ${keyName}`);
+      }
+    });
+  })
+  .catch(error => {
+    console.error("Erro na requisição:", error);
+  });
